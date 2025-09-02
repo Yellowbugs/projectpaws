@@ -100,9 +100,9 @@ function Page({ title, right, children }) {
   );
 }
 
-function HousesPage({ data }) {
+function MembersPage({ data }) {
   return (
-    <Page title="Houses">
+    <Page title="Members">
       <div className="grid md:grid-cols-2 gap-6">
         {!data?.length ? (
           <>
@@ -111,13 +111,11 @@ function HousesPage({ data }) {
             <LoadingCard />
           </>
         ) : (
-          data.map((h, idx) => {
-            const members = (h.Members || "").split(",").map(s => s.trim()).filter(Boolean);
-            const houseName = h.House || `House ${idx + 1}`;
-            const leader = h.Leader || "TBD";
-            const colorKey = String(h.Color || h.color || "").toLowerCase();
+          data.map((m, idx) => {
+            const member = (m.Member || "")
+            const colorKey = String(m.Color || m.color || "").toLowerCase();
             const theme = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
-            const points = h.Points || 0;
+            const points = m.Points || 0;
 
             return (
               <div
@@ -127,37 +125,16 @@ function HousesPage({ data }) {
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`h-11 w-11 rounded-full flex items-center justify-center font-bold ${theme.avatar}`}>
-                      {houseName?.[0]?.toUpperCase() ?? "P"}
+                      {member?.[0]?.toUpperCase() ?? "P"}
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-stone-900">{houseName}</div>
-                      <div className="text-sm text-stone-600">
-                        Leader: <span className="font-medium text-stone-800">{leader}</span>
-                      </div>
+                      <div className="text-lg font-bold text-stone-900">{member}</div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
                     <div className="text-5xl font-bold text-stone-900">{points}</div>
                     <div className="text-base font-semibold text-stone-600">points</div>
                   </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="text-sm uppercase tracking-wide text-stone-500 mb-2">Members</div>
-                  {members.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {members.map((m, i) => (
-                        <span
-                          key={i}
-                          className={`px-3 py-1 rounded-full text-sm border ${theme.memberPill}`}
-                        >
-                          {m}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-stone-500 text-sm">No members listed yet.</div>
-                  )}
                 </div>
               </div>
             );
@@ -190,12 +167,12 @@ function UpdatesPage({ data, colors }) {
         <div className="grid gap-4">
           {sorted.map((u, i) => {
             const ts = u.Timestamp || "";
-            const house = (u.House || "House").trim();
+            const member = (u.Member || "Member").trim();
             const pts = u.Points ?? "";
             const desc = u.Description || "";
             const dispPts = String(pts).startsWith("+") || String(pts).startsWith("-") ? String(pts) : `+${pts}`;
 
-            const colorKey = (colors?.[house] || "").toLowerCase();
+            const colorKey = (colors?.[member] || "").toLowerCase();
             const theme = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
 
             return (
@@ -207,13 +184,13 @@ function UpdatesPage({ data, colors }) {
                   <div>
                     <div className="text-sm text-stone-500">{timeAgo(ts)}</div>
                     <div className="mt-1 text-lg font-semibold text-stone-900">
-                      {dispPts} points
+                      {dispPts} point{Math.abs(parseInt(dispPts, 10)) === 1 ? "" : "s"}
                     </div>
                     <div className="text-stone-700 mt-1">{desc}</div>
                   </div>
 
                   <div className={`px-3 py-1 rounded-full text-sm font-semibold h-fit ${theme.badge}`}>
-                    {house}
+                    {member}
                   </div>
                 </div>
               </div>
@@ -311,7 +288,7 @@ function Nav() {
               end
               className={({ isActive }) => `${linkBase} ${isActive ? active : inactive}`}
             >
-              Houses
+              Members
             </NavLink>
             <NavLink
               to="/updates"
@@ -343,20 +320,20 @@ function Background() {
 }
 
 export default function App() {
-  const [houses, setHouses] = useState([]);
+  const [members, setMembers] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [rules, setRules] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [error, setError] = useState("");
   const colorMap = useMemo(() => {
     const map = {};
-    for (const h of houses) {
-      const name = (h.House || h.house || "").trim();
-      const color = String(h.Color || h.color || "").trim().toLowerCase();
+    for (const m of members) {
+      const name = (m.member || m.Member || "").trim();
+      const color = String(m.Color || m.color || "").trim().toLowerCase();
       if (name) map[name] = color;
     }
     return map;
-  }, [houses]);
+  }, [members]);
   
   useEffect(() => {
     let cancelled = false;
@@ -371,7 +348,9 @@ export default function App() {
         if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
         const json = await res.json();
         if (cancelled) return;
-        setHouses(json.houses || []);
+        const membersData = json.members || [];
+        membersData.sort((a, b) => (b.Points || 0) - (a.Points || 0));
+        setMembers(membersData || []);
         setUpdates(json.updates || []);
         setRules(json.rules || []);
         setStatus("ready");
@@ -415,7 +394,7 @@ export default function App() {
       )}
 
     <Routes>
-      <Route path="/" element={<HousesPage data={houses} />} />
+      <Route path="/" element={<MembersPage data={members} />} />
       <Route path="/updates" element={<UpdatesPage data={updates} colors={colorMap} />} />
       <Route path="/rules" element={<RulesPage data={rules} />} />
     </Routes>
