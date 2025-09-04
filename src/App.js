@@ -133,7 +133,7 @@ function MembersPage({ data }) {
                   </div>
                   <div className="flex flex-col items-end">
                     <div className="text-5xl font-bold text-stone-900">{points}</div>
-                    <div className="text-base font-semibold text-stone-600">points</div>
+                    <div className="text-base font-semibold text-stone-600">point{Math.abs(parseInt(points, 10)) === 1 ? "" : "s"}</div>
                   </div>
                 </div>
               </div>
