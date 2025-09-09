@@ -131,37 +131,73 @@ function Page({ title, right, children }) {
 }
 
 function MembersPage({ data }) {
+  const [query, setQuery] = useState("");
   const scoreToRank = useMemo(() => {
     const scores = (data || []).map(m => Number(m.Points) || 0);
     const uniqDesc = [...new Set(scores)].sort((a, b) => b - a);
     const map = {};
-    uniqDesc.forEach((score, i) => { map[score] = i + 1; }); // same score => same rank
+    uniqDesc.forEach((score, i) => { map[score] = i + 1; });
     return map;
   }, [data]);
-  return (
-    <Page title="Members">
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return data || [];
+    return (data || []).filter((m) =>
+      String(m.Member || "").toLowerCase().includes(q)
+    );
+  }, [data, query]);
+
+  const searchBox = (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      placeholder="Search members…"
+        aria-label="Search members by name"
+        className="w-64 md:w-72 rounded-xl border border-white/30 bg-white/60 backdrop-blur px-3 py-2 text-sm text-stone-900 placeholder-stone-500 shadow focus:outline-none focus:ring-2 focus:ring-amber-300"
+      />
+      {query && (
+        <button
+          type="button"
+          onClick={() => setQuery("")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700"
+          aria-label="Clear search"
+          title="Clear"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+
+    return (
+    <Page title="Members" right={searchBox}>
       <div className="grid md:grid-cols-2 gap-6">
-        {!data?.length ? (
+        {!data?.length ?(
           <>
             <LoadingCard />
             <LoadingCard />
             <LoadingCard />
           </>
+        ) : !filtered?.length ? (
+          <div className="col-span-full text-center text-stone-600 font-medium py-8">
+            No member found
+          </div>
         ) : (
-          data.map((m, idx) => {
+          filtered.map((m, idx) => {
             const member = (m.Member || "");
             const colorKey = String(m.Color || m.color || "").toLowerCase();
             const pointsNum = Number(m.Points) || 0;
-          
-            const rank = scoreToRank[pointsNum]; // 1, 2, 3, ...
+
+            const rank = scoreToRank[pointsNum]; // same ranks as full list
             const isPodium = rank >= 1 && rank <= 3;
-          
-            // if podium, override theme with medal colors; otherwise use sheet color/default
+
             const baseTheme = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
             const theme = isPodium ? PODIUM_STYLES[rank].theme : baseTheme;
-          
             const medalEmoji = isPodium ? PODIUM_STYLES[rank].emoji : null;
-          
+
             return (
               <div
                 key={idx}
@@ -193,13 +229,14 @@ function MembersPage({ data }) {
                   </div>
                 </div>
               </div>
-            );          
+            );
           })
         )}
       </div>
     </Page>
   );
 }
+
 
 
 function UpdatesPage({ data, colors }) {
