@@ -100,6 +100,10 @@ const COLOR_STYLES = {
   },
 };
 
+function ordinal(n) {
+  const s = ["th","st","nd","rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 function LoadingCard({ lines = 3 }) {
   return (
@@ -154,9 +158,9 @@ function MembersPage({ data }) {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-      placeholder="Search members…"
+        placeholder="Search members…"
         aria-label="Search members by name"
-        className="w-64 md:w-72 rounded-xl border border-white/30 bg-white/60 backdrop-blur px-3 py-2 text-sm text-stone-900 placeholder-stone-500 shadow focus:outline-none focus:ring-2 focus:ring-amber-300"
+        className="w-48 sm:w-56 md:w-72 rounded-xl border border-white/30 bg-white/60 backdrop-blur px-3 py-2 text-sm text-stone-900 placeholder-stone-500 shadow focus:outline-none focus:ring-2 focus:ring-amber-300"
       />
       {query && (
         <button
@@ -171,6 +175,7 @@ function MembersPage({ data }) {
       )}
     </div>
   );
+  
 
     return (
     <Page title="Members" right={searchBox}>
@@ -330,6 +335,89 @@ function RulesPage({ data }) {
   );
 }
 
+function PrizesPage({ data }) {
+  // sort by numeric place ascending
+  const sorted = useMemo(() => {
+    const items = Array.isArray(data) ? data : [];
+    return [...items].sort((a, b) => {
+      const pa = parseInt(a.Place ?? a.place ?? a.rank ?? 0, 10) || 0;
+      const pb = parseInt(b.Place ?? b.place ?? b.rank ?? 0, 10) || 0;
+      return pa - pb;
+    });
+  }, [data]);
+
+  const notesText = useMemo(() => {
+    return sorted.find(r => r.Notes || r.notes)?.Notes || "";
+  }, [sorted]);
+
+  // map place => podium theme (1..3), else neutral
+  const getThemeForPlace = (place) => {
+    const p = Number(place) || 0;
+    if (p >= 1 && p <= 3 && PODIUM_STYLES?.[p]) return PODIUM_STYLES[p].theme;
+    return COLOR_STYLES.default;
+  };
+
+  const getMedalForPlace = (place) => {
+    const p = Number(place) || 0;
+    return PODIUM_STYLES?.[p]?.emoji ?? null;
+  };
+
+  return (
+    <Page title="Prizes">
+      {notesText && (
+        <div className="mb-6 p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 shadow">
+          <div className="font-semibold">Current Competition Info</div>
+          <div className="text-sm mt-1">{notesText}</div>
+        </div>
+      )}
+      {!sorted.length ? (
+        <div className="grid md:grid-cols-2 gap-4">
+          <LoadingCard lines={4} />
+          <LoadingCard lines={4} />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {sorted.map((row, i) => {
+            const placeRaw = row.Place ?? row.place ?? row.rank ?? "";
+            const placeNum = parseInt(placeRaw, 10) || 0;
+            const prize = row.Prize ?? row.prize ?? row.reward ?? "";
+
+            const theme = getThemeForPlace(placeNum);
+            const medal = getMedalForPlace(placeNum);
+
+            return (
+              <div
+                key={i}
+                className={`rounded-2xl border border-white/25 backdrop-blur-xl shadow-xl p-5 ${theme.card}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-stone-600">
+                      Placement
+                    </div>
+                    <div className="mt-1 text-2xl font-extrabold text-stone-900 flex items-center gap-2 ">
+                      {ordinal(placeNum || 0)}
+                      {medal && <span className="text-2xl">{medal}</span>}
+                    </div>
+
+                    <div className="mt-3 text-stone-800">
+                      {String(prize || "").trim() || <span className="text-stone-500">TBD</span>}
+                    </div>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-sm font-semibold h-fit ${theme.badge}`}>
+                  {ordinal(placeNum || 0)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Page>
+  );
+}
+
+
 function timeAgo(dateString) {
   const date = new Date(dateString);
   const now = new Date();
@@ -395,6 +483,12 @@ function Nav() {
             >
               Rules
             </NavLink>
+            <NavLink
+              to="/prizes"
+              className={({ isActive }) => `${linkBase} ${isActive ? active : inactive}`}
+            >
+              Prizes
+            </NavLink>
           </div>
         </div>
       </div>
@@ -416,6 +510,7 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [rules, setRules] = useState([]);
+  const [prizes, setPrizes] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [error, setError] = useState("");
   const colorMap = useMemo(() => {
@@ -446,6 +541,7 @@ export default function App() {
         setMembers(membersData || []);
         setUpdates(json.updates || []);
         setRules(json.rules || []);
+        setPrizes(json.prizes || []);
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
@@ -490,6 +586,7 @@ export default function App() {
       <Route path="/" element={<MembersPage data={members} />} />
       <Route path="/updates" element={<UpdatesPage data={updates} colors={colorMap} />} />
       <Route path="/rules" element={<RulesPage data={rules} />} />
+      <Route path="/prizes" element={<PrizesPage data={prizes} />} />
     </Routes>
 
     </div>
