@@ -7,6 +7,36 @@ import logo from "./assets/logo.jpg"; // top of your file
  * REACT_APP_GAS_URL=https://script.google.com/macros/s/AKfycbx.../exec
  */
 const GAS_URL = process.env.REACT_APP_GAS_URL || ""; 
+const PODIUM_STYLES = {
+  1: {
+    emoji: "🥇",
+    theme: {
+      card: "bg-gradient-to-br from-amber-50/80 via-yellow-50/70 to-white/40",
+      avatar: "bg-amber-500 text-amber-50",
+      memberPill: "bg-amber-200/70 border-amber-900/10 text-stone-900",
+      badge: "bg-amber-600 text-amber-50",
+    },
+  },
+  2: {
+    emoji: "🥈",
+    theme: {
+      card: "bg-gradient-to-br from-zinc-50/80 via-gray-50/70 to-white/40",
+      avatar: "bg-zinc-500 text-zinc-50",
+      memberPill: "bg-zinc-200/70 border-zinc-900/10 text-stone-900",
+      badge: "bg-zinc-600 text-zinc-50",
+    },
+  },
+  3: {
+    emoji: "🥉",
+    theme: {
+      card: "bg-gradient-to-br from-orange-50/80 via-amber-50/70 to-white/40",
+      avatar: "bg-orange-600 text-orange-50",
+      memberPill: "bg-orange-200/70 border-orange-900/10 text-stone-900",
+      badge: "bg-orange-700 text-orange-50",
+    },
+  },
+};
+
 const COLOR_STYLES = {
   blue: {
     card: "bg-gradient-to-br from-blue-50/70 via-blue-50/60 to-white/30",
@@ -101,6 +131,13 @@ function Page({ title, right, children }) {
 }
 
 function MembersPage({ data }) {
+  const scoreToRank = useMemo(() => {
+    const scores = (data || []).map(m => Number(m.Points) || 0);
+    const uniqDesc = [...new Set(scores)].sort((a, b) => b - a);
+    const map = {};
+    uniqDesc.forEach((score, i) => { map[score] = i + 1; }); // same score => same rank
+    return map;
+  }, [data]);
   return (
     <Page title="Members">
       <div className="grid md:grid-cols-2 gap-6">
@@ -112,11 +149,19 @@ function MembersPage({ data }) {
           </>
         ) : (
           data.map((m, idx) => {
-            const member = (m.Member || "")
+            const member = (m.Member || "");
             const colorKey = String(m.Color || m.color || "").toLowerCase();
-            const theme = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
-            const points = m.Points || 0;
-
+            const pointsNum = Number(m.Points) || 0;
+          
+            const rank = scoreToRank[pointsNum]; // 1, 2, 3, ...
+            const isPodium = rank >= 1 && rank <= 3;
+          
+            // if podium, override theme with medal colors; otherwise use sheet color/default
+            const baseTheme = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
+            const theme = isPodium ? PODIUM_STYLES[rank].theme : baseTheme;
+          
+            const medalEmoji = isPodium ? PODIUM_STYLES[rank].emoji : null;
+          
             return (
               <div
                 key={idx}
@@ -127,17 +172,28 @@ function MembersPage({ data }) {
                     <div className={`h-11 w-11 rounded-full flex items-center justify-center font-bold ${theme.avatar}`}>
                       {member?.[0]?.toUpperCase() ?? "P"}
                     </div>
-                    <div>
+                    <div className="flex items-center gap-2">
                       <div className="text-lg font-bold text-stone-900">{member}</div>
+                      {medalEmoji && (
+                        <span
+                          className="text-2xl"
+                          aria-label={rank === 1 ? "Gold medal" : rank === 2 ? "Silver medal" : "Bronze medal"}
+                          title={rank === 1 ? "Gold" : rank === 2 ? "Silver" : "Bronze"}
+                        >
+                          {medalEmoji}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <div className="text-5xl font-bold text-stone-900">{points}</div>
-                    <div className="text-base font-semibold text-stone-600">point{Math.abs(parseInt(points, 10)) === 1 ? "" : "s"}</div>
+                    <div className="text-5xl font-bold text-stone-900">{pointsNum}</div>
+                    <div className="text-base font-semibold text-stone-600">
+                      point{Math.abs(pointsNum) === 1 ? "" : "s"}
+                    </div>
                   </div>
                 </div>
               </div>
-            );
+            );          
           })
         )}
       </div>
